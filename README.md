@@ -24,3 +24,17 @@ predicted and actual values as graph to understand how accurate the predicted va
 5. Gradient boosting models
 
 Each of the following models, is subjected to the dataset obtained from MAANG companies. 
+
+## CONTRIBUTORS:
+
+1. Shwedha Srinivasan
+
+2. Priya Rajendran
+
+# FILE BREAKDOWN:
+
+1. .rmd files are for code based files there are no outputs.
+2. .html files are for the visualised output purposes.
+3. .csv files are the data sets we have used during, since the project was done almost a year ago the datasets are not up to date but the code for extraction is already present in the html and rmd files.
+
+
