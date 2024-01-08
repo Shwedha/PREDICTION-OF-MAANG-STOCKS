@@ -1,0 +1,421 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
+LINEAR REGRESSION:
+
+```{r}
+library(quantmod)
+
+# Download stock market data for Amazon (AMZN), Microsoft (MSFT), and Netflix (NFLX)
+getSymbols(c("AMZN", "NFLX","AAPL","META","GOOGL"), src = "yahoo")
+
+# Export the data to a CSV file
+write.csv(META, "META.csv")
+# Convert the index of the AMZN xts object to a date column
+META$date <- as.Date(index(META))
+META$returns <- dailyReturn(META)
+write.csv(META, "META.csv", row.names = FALSE)
+data <- read.csv("META.csv")
+names(data) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted", "returns")
+write.csv(data, "META_new.csv", row.names = FALSE)
+data$date <- as.Date(index(META))
+chartSeries(data)
+model <- lm(returns ~ Open + Close + Volume + Low + High + date, data = data)
+head(data)
+```
+```{r}
+summary(model)
+```
+```{r}
+plot(data, pch = 16, col = "blue")
+abline(model)
+
+```
+```{r}
+library(caret)
+
+
+# Set the seed for reproducibility
+set.seed(123)
+
+# Split the data into training and test sets
+trainIndex <- createDataPartition(data$returns, p = 0.8, list = FALSE)
+train <- data[trainIndex, ]
+test <- data[-trainIndex, ]
+head(train)
+model <- lm(returns ~ Open + Close + Volume + Low + High + date, data = train)
+predictions <- predict(model, newdata = test)
+summary(model)
+# Evaluate the model's performance
+mse <- mean((predictions - test$returns)^2)
+rmse <- sqrt(mse)
+rsq <- summary(model)$r.squared
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("R-squared:", rsq, "\n")
+head(test)
+```
+
+
+```{r}
+# Create a sequence of dates for the next 10 days
+new_dates <- seq(max(data$date) + 1, max(data$date) + 10, by = "day")
+
+# Create a data frame with the predictor variables for the next 10 days
+new_data <- data.frame(
+  date = new_dates,
+  Open = rep(NA, 10),
+  Close = rep(NA, 10),
+  Volume = rep(NA, 10),
+  Low = rep(NA, 10),
+  High = rep(NA, 10),
+  Adjusted = rep(NA,10)
+)
+
+# Fill in the values of the predictor variables for the next 10 days with random values from the original data
+for (i in 1:10) {
+  new_data[i, "Open"] <- sample(data$Open, 1)
+  new_data[i, "Close"] <- sample(data$Close, 1)
+  new_data[i, "Volume"] <- sample(data$Volume, 1)
+  new_data[i, "Low"] <- sample(data$Low, 1)
+  new_data[i, "High"] <- sample(data$High, 1)
+  new_data[i, "Adjusted"] <- sample(data$Adjusted, 1)
+}
+
+# Predict returns for the next 10 days
+new_predictions <- NULL
+new_predictions <- predict(model, newdata = new_data)
+
+# Print the predicted returns
+print(new_predictions)
+
+```
+```{r}
+# Plot the predicted returns for the next 10 days
+plot(new_dates, new_predictions, type = "l", xlab = "Date", ylab = "Returns", main = "Predicted Returns for Next 10 Days")
+
+```
+
+##VISUALISING THE DATA:
+```{r}
+library(ggplot2)
+
+# Create a data frame with actual and predicted values
+df <- data.frame(date = test$date, actual = test$returns, predicted = predictions)
+
+# Create a line graph of actual versus predicted values
+ggplot(df, aes(x = date)) +
+  geom_line(aes(y = actual, color = "Actual")) +
+  geom_line(aes(y = predicted, color = "Predicted")) +
+  xlab("Date") +
+  ylab("Returns") +
+  ggtitle("Actual vs. Predicted Returns") +
+  scale_color_manual(name = "Legend", values = c("Actual" = "blue", "Predicted" = "red"))
+
+
+```
+#SVM
+
+```{r}
+# Load the required packages
+library(e1071)
+
+# Fit an SVM model with radial basis kernel
+svm_model <- svm(returns ~ Open + Close + Volume + Low+ High + date, data = train, kernel = "radial")
+
+# Make predictions on the test set
+svm_pred <- predict(svm_model, newdata = test)
+
+# Evaluate the model's performance
+svm_mse <- mean((svm_pred - test$returns)^2)
+svm_rmse <- sqrt(svm_mse)
+svm_rsq <- cor(svm_pred, test$returns)^2
+cat("MSE:", svm_mse, "\n")
+cat("RMSE:", svm_rmse, "\n")
+cat("R-squared:", svm_rsq, "\n")
+
+```
+```{r}
+# Create a sequence of dates for the next 10 days
+new_dates <- seq(max(data$date) + 1, max(data$date) + 10, by = "day")
+
+# Create a data frame with the predictor variables for the next 10 days
+new_data <- data.frame(
+  date = new_dates,
+  Open = rep(NA, 10),
+  Close = rep(NA, 10),
+  Volume = rep(NA, 10),
+  Low = rep(NA, 10),
+  High = rep(NA, 10),
+  Adjusted = rep(NA,10)
+)
+
+# Fill in the values of the predictor variables for the next 10 days with random values from the original data
+for (i in 1:10) {
+  new_data[i, "Open"] <- sample(data$Open, 1)
+  new_data[i, "Close"] <- sample(data$Close, 1)
+  new_data[i, "Volume"] <- sample(data$Volume, 1)
+  new_data[i, "Low"] <- sample(data$Low, 1)
+  new_data[i, "High"] <- sample(data$High, 1)
+  new_data[i, "Adjusted"] <- sample(data$Adjusted, 1)
+}
+
+# Predict returns for the next 10 days
+new_predictions <- NULL
+new_predictions <- predict(svm_model, newdata = new_data)
+
+# Print the predicted returns
+print(new_predictions)
+```
+```{r}
+library(ggplot2)
+# Plot the predicted returns for the next 10 days
+plot(new_dates, new_predictions, type = "l", xlab = "Date", ylab = "Returns", main = "Predicted Returns for Next 10 Days")
+
+
+# Create a data frame with actual and predicted values
+df <- data.frame(date = test$date, actual = test$returns, predicted = svm_pred)
+
+# Create a line graph of actual versus predicted values
+ggplot(df, aes(x = date)) +
+  geom_line(aes(y = actual, color = "Actual")) +
+  geom_line(aes(y = predicted, color = "Predicted")) +
+  xlab("Date") +
+  ylab("Returns") +
+  ggtitle("Actual vs. Predicted Returns") +
+  scale_color_manual(name = "Legend", values = c("Actual" = "blue", "Predicted" = "red"))
+```
+#RANDOM FOREST:
+```{r}
+library(randomForest)
+# Train the model
+model <- NULL
+rf_model <- randomForest(returns ~ Open + Close + Volume + Low+ High + date, data = train, ntree = 500)
+
+# Make predictions on the test set
+predictions <- NULL
+rf_predict <- predict(rf_model, newdata = test)
+
+# Evaluate the model's performance
+mse <- mean((rf_predict - test$returns)^2)
+rmse <- sqrt(mse)
+rsq <- cor(rf_predict, test$returns)^2
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("R-squared:", rsq, "\n")
+
+# Plot the variable importance
+varImpPlot(rf_model)
+```
+
+```{r}
+# Create a sequence of dates for the next 10 days
+new_dates <- seq(max(data$date) + 1, max(data$date) + 10, by = "day")
+
+# Create a data frame with the predictor variables for the next 10 days
+new_data <- data.frame(
+  date = new_dates,
+  Open = rep(NA, 10),
+  Close = rep(NA, 10),
+  Volume = rep(NA, 10),
+  Low = rep(NA, 10),
+  High = rep(NA, 10),
+  Adjusted = rep(NA,10)
+)
+
+# Fill in the values of the predictor variables for the next 10 days with random values from the original data
+for (i in 1:10) {
+  new_data[i, "Open"] <- sample(data$Open, 1)
+  new_data[i, "Close"] <- sample(data$Close, 1)
+  new_data[i, "Volume"] <- sample(data$Volume, 1)
+  new_data[i, "Low"] <- sample(data$Low, 1)
+  new_data[i, "High"] <- sample(data$High, 1)
+  new_data[i, "Adjusted"] <- sample(data$Adjusted, 1)
+}
+
+# Predict returns for the next 10 days
+new_predictions <- NULL
+new_predictions <- predict(rf_model, newdata = new_data)
+
+# Print the predicted returns
+print(new_predictions)
+```
+```{r}
+library(ggplot2)
+
+# Create a data frame with actual and predicted values
+df <- data.frame(date = test$date, actual = test$returns, predicted = rf_predict)
+# Plot the predicted returns for the next 10 days
+plot(new_dates, new_predictions, type = "l", xlab = "Date", ylab = "Returns", main = "Predicted Returns for Next 10 Days")
+
+# Create a line graph of actual versus predicted values
+ggplot(df, aes(x = date)) +
+  geom_line(aes(y = actual, color = "Actual")) +
+  geom_line(aes(y = predicted, color = "Predicted")) +
+  xlab("Date") +
+  ylab("Returns") +
+  ggtitle("Actual vs. Predicted Returns") +
+  scale_color_manual(name = "Legend", values = c("Actual" = "blue", "Predicted" = "red"))
+```
+#DECSION TREES:
+
+```{r}
+library(rpart)
+library(rpart.plot)
+# Build the decision tree model
+dt_model <- rpart(returns ~ Open + Close + Volume + Low+ Adjusted + High + date, data = train)
+
+# Make predictions on the test set
+predictions <- predict(dt_model, newdata = test)
+summary(dt_model)
+# Evaluate the model's performance
+mse <- mean((predictions - test$returns)^2)
+rmse <- sqrt(mse)
+xerror <- dt_model$cptable[which.min(dt_model$cptable[,"xerror"]),"xerror"]
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("Cross-validated error rate:", xerror, "\n")
+
+
+
+```
+```{r}
+# Create a sequence of dates for the next 10 days
+new_dates <- seq(max(data$date) + 1, max(data$date) + 10, by = "day")
+
+# Create a data frame with the predictor variables for the next 10 days
+new_data <- data.frame(
+  date = new_dates,
+  Open = rep(NA, 10),
+  Close = rep(NA, 10),
+  Volume = rep(NA, 10),
+  Low = rep(NA, 10),
+  High = rep(NA, 10),
+  Adjusted = rep(NA,10)
+)
+
+# Fill in the values of the predictor variables for the next 10 days with random values from the original data
+for (i in 1:10) {
+  new_data[i, "Open"] <- sample(data$Open, 1)
+  new_data[i, "Close"] <- sample(data$Close, 1)
+  new_data[i, "Volume"] <- sample(data$Volume, 1)
+  new_data[i, "Low"] <- sample(data$Low, 1)
+  new_data[i, "High"] <- sample(data$High, 1)
+  new_data[i, "Adjusted"] <- sample(data$Adjusted, 1)
+}
+
+# Predict returns for the next 10 days
+new_predictions <- NULL
+new_predictions <- predict(dt_model, newdata = new_data)
+
+# Print the predicted returns
+print(new_predictions)
+```
+```{r}
+library(ggplot2)
+
+# Create a data frame with actual and predicted values
+df <- data.frame(date = test$date, actual = test$returns, predicted = rf_predict)
+# Plot the predicted returns for the next 10 days
+plot(new_dates, new_predictions, type = "l", xlab = "Date", ylab = "Returns", main = "Predicted Returns for Next 10 Days")
+
+# Create a line graph of actual versus predicted values
+ggplot(df, aes(x = date)) +
+  geom_line(aes(y = actual, color = "Actual")) +
+  geom_line(aes(y = predicted, color = "Predicted")) +
+  xlab("Date") +
+  ylab("Returns") +
+  ggtitle("Actual vs. Predicted Returns") +
+  scale_color_manual(name = "Legend", values = c("Actual" = "blue", "Predicted" = "red"))
+```
+##GRADIENT BOOSTING MODELS
+```{r}
+# Load the gbm package
+library(gbm)
+
+# Set the seed for reproducibility
+set.seed(123)
+
+# Split the data into training and test sets
+trainIndex <- createDataPartition(data$returns, p = 0.8, list = FALSE)
+train <- data[trainIndex, ]
+test <- data[-trainIndex, ]
+
+# Train the model
+gbm_model <- gbm(returns ~ Open + Close + Volume + Low+ High, data = train, n.trees = 500, interaction.depth = 4, shrinkage = 0.01, distribution = "gaussian")
+
+# Make predictions on the test set
+predictions <- predict(gbm_model, newdata = test, n.trees = 500)
+
+# Evaluate the model's performance
+mse <- mean((predictions - test$returns)^2)
+rmse <- sqrt(mse)
+rsq <- cor(predictions, test$returns)^2
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("R-squared:", rsq, "\n")
+
+```
+```{r}
+# Create a sequence of dates for the next 10 days
+new_dates <- seq(max(data$date) + 1, max(data$date) + 10, by = "day")
+
+# Create a data frame with the predictor variables for the next 10 days
+new_data <- data.frame(
+  date = new_dates,
+  Open = rep(NA, 10),
+  Close = rep(NA, 10),
+  Volume = rep(NA, 10),
+  Low = rep(NA, 10),
+  High = rep(NA, 10),
+  Adjusted = rep(NA,10)
+)
+
+# Fill in the values of the predictor variables for the next 10 days with random values from the original data
+for (i in 1:10) {
+  new_data[i, "Open"] <- sample(data$Open, 1)
+  new_data[i, "Close"] <- sample(data$Close, 1)
+  new_data[i, "Volume"] <- sample(data$Volume, 1)
+  new_data[i, "Low"] <- sample(data$Low, 1)
+  new_data[i, "High"] <- sample(data$High, 1)
+  new_data[i, "Adjusted"] <- sample(data$Adjusted, 1)
+}
+
+# Predict returns for the next 10 days
+new_predictions <- NULL
+new_predictions <- predict(gbm_model, newdata = new_data)
+
+# Print the predicted returns
+print(new_predictions)
+```
+```{r}
+library(ggplot2)
+
+# Create a data frame with actual and predicted values
+df <- data.frame(date = test$date, actual = test$returns, predicted = rf_predict)
+# Plot the predicted returns for the next 10 days
+plot(new_dates, new_predictions, type = "l", xlab = "Date", ylab = "Returns", main = "Predicted Returns for Next 10 Days")
+
+# Create a line graph of actual versus predicted values
+ggplot(df, aes(x = date)) +
+  geom_line(aes(y = actual, color = "Actual")) +
+  geom_line(aes(y = predicted, color = "Predicted")) +
+  xlab("Date") +
+  ylab("Returns") +
+  ggtitle("Actual vs. Predicted Returns") +
+  scale_color_manual(name = "Legend", values = c("Actual" = "blue", "Predicted" = "red"))
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
