@@ -29,7 +29,7 @@ Each of the following models, is subjected to the dataset obtained from MAANG co
 
 1. Shwedha Srinivasan
 
-2. Priya Rajendran
+2. Priyadarshini Rajendran
 
 # FILE BREAKDOWN:
 
